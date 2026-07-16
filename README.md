@@ -81,6 +81,8 @@ assistant settings write success=true verified=true
 
 - `PowerKeyOverlayHook` 接管 HyperOS 的长按电源键助手入口，通过系统语音交互服务显示
   Overlay。
+- 对直接启动超级小爱的 HyperOS 版本，精确接管
+  `ShortCutActionsUtils#launchVoiceAssistant` 的 `long_press_power_key` 路径。
 - `AssistantPersistHook` 设置并验证 Google 助手相关的 Secure/Global 设置。
 - `XiaoAiPowerKeyDisableHook` 精确覆盖超级小爱的 `power_wakeup` 偏好。
 - `SimSpoofHook` 只在 Gemini 与 Google App 进程内拦截地区检查所需的 Telephony API。

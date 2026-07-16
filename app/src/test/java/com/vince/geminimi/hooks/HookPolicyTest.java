@@ -30,6 +30,13 @@ public class HookPolicyTest {
         assertFalse(HookPolicy.isPowerWakeupKey(null));
     }
 
+    @Test
+    public void matchesOnlyLongPressPowerShortcut() {
+        assertTrue(HookPolicy.isPowerLongPressShortcut("long_press_power_key"));
+        assertFalse(HookPolicy.isPowerLongPressShortcut("headset"));
+        assertFalse(HookPolicy.isPowerLongPressShortcut(null));
+    }
+
     private static Method method(String name) throws Exception {
         return Fixtures.class.getDeclaredMethod(name);
     }

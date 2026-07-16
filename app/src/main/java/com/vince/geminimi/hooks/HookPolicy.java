@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier;
 
 final class HookPolicy {
     static final String POWER_WAKEUP_KEY = "power_wakeup";
+    static final String POWER_LONG_PRESS_SHORTCUT = "long_press_power_key";
 
     private HookPolicy() {}
 
@@ -27,5 +28,9 @@ final class HookPolicy {
 
     static boolean isPowerWakeupKey(String key) {
         return POWER_WAKEUP_KEY.equals(key);
+    }
+
+    static boolean isPowerLongPressShortcut(String shortcut) {
+        return POWER_LONG_PRESS_SHORTCUT.equals(shortcut);
     }
 }
