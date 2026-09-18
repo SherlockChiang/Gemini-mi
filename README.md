@@ -16,7 +16,7 @@
 
 ## 功能
 
-- 长按电源键显示 Gemini Overlay，而不是打开 Gemini 普通应用界面
+- 按住电源键 3 秒显示 Gemini Overlay，继续按住至 5 秒显示系统电源菜单
 - 禁止超级小爱重新启用“电源键唤醒”
 - 将系统语音助手、语音交互服务和语音识别服务设置为 Google
 - 开启助手读取屏幕文字与截图的权限开关
@@ -60,6 +60,7 @@ assistant settings write success=true verified=true
 - `showSessionForActiveService failed`：当前 ROM 的隐藏系统接口签名不同，请在 Issue 中附上完整日志。
 - 弹出 Gemini 普通应用而非 Overlay：确认 Google App 的数字助理已切换为 Gemini，并重启设备。
 - 重启后仍是小爱：确认 LSPosed 作用域包含 `android` 和 `com.miui.voiceassist`。
+- 5 秒仍未显示电源菜单：确认是从电源键按下开始持续按住，松手会取消菜单计时。
 - Gemini 仍提示地区不可用：确认 Gemini 与 Google App 都在作用域中，并强制停止后重试。
 
 反馈问题时请提供设备型号、HyperOS/Android 版本、Google App/Gemini 版本和上述日志。
@@ -80,7 +81,7 @@ assistant settings write success=true verified=true
 ## 工作原理
 
 - `PowerKeyOverlayHook` 接管 HyperOS 的长按电源键助手入口，通过系统语音交互服务显示
-  Overlay。
+  Overlay，并管理 3 秒 Gemini / 5 秒电源菜单的按键时序。
 - 对直接启动超级小爱的 HyperOS 版本，精确接管
   `ShortCutActionsUtils#launchVoiceAssistant` 的 `long_press_power_key` 路径。
 - `AssistantPersistHook` 设置并验证 Google 助手相关的 Secure/Global 设置。
@@ -104,7 +105,7 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 仓库通过 GitHub Actions 自动构建签名版本。LSPosed 官方仓库的 Release tag 使用
-`VersionCode-VersionName` 格式，例如 `4-1.1`。
+`VersionCode-VersionName` 格式，例如 `5-1.1.1`。
 
 签名初始化和维护说明见：
 

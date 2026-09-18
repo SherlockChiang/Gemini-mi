@@ -1,6 +1,10 @@
 package com.vince.geminimi.hooks;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.view.KeyEvent;
 
 import com.vince.geminimi.Constants;
 
@@ -26,6 +30,12 @@ public final class PowerKeyOverlayHook {
     private static final int SHOW_SOURCE_PUSH_TO_TALK = 1 << 4;
     private static final int SHOW_POWER_ASSIST_WITH_SCREENSHOT =
             SHOW_WITH_ASSIST | SHOW_WITH_SCREENSHOT | SHOW_SOURCE_PUSH_TO_TALK;
+    private static final Object SEQUENCE_LOCK = new Object();
+    private static final Handler SEQUENCE_HANDLER = new Handler(Looper.getMainLooper());
+    private static Object sPhoneWindowManager;
+    private static long sPowerDownAt = -1L;
+    private static Runnable sGeminiRunnable;
+    private static Runnable sPowerMenuRunnable;
 
     public static void apply(XC_LoadPackage.LoadPackageParam lpp) {
         ClassLoader cl = lpp.classLoader;
@@ -37,6 +47,8 @@ public final class PowerKeyOverlayHook {
             XposedBridge.log(Constants.TAG + " PhoneWindowManager not found: " + t);
             return;
         }
+
+        hookPowerKeyEvents(pwm);
 
         // 不再枚举固定名字。HyperOS 各版本把方法叫 launchSuperXiaoAi /
         // launchXiaoAiOnPowerLong / launchXiaoAiByLongPressPower / launchAiKey ...
@@ -67,7 +79,7 @@ public final class PowerKeyOverlayHook {
                         }
                         Context ctx = (Context) XposedHelpers.getObjectField(
                                 param.thisObject, "mContext");
-                        if (ctx != null && sendAssist(ctx)) {
+                        if (ctx != null && armLongPressSequence(null, ctx)) {
                             param.setResult(true);
                             XposedBridge.log(Constants.TAG
                                     + " intercepted ShortCutActionsUtils#launchVoiceAssistant"
@@ -97,7 +109,7 @@ public final class PowerKeyOverlayHook {
                     if (param.thisObject == null) return;
                     Context ctx = (Context) XposedHelpers
                             .getObjectField(param.thisObject, "mContext");
-                    if (ctx != null && sendAssist(ctx)) {
+                    if (ctx != null && armLongPressSequence(param.thisObject, ctx)) {
                         param.setResult(interceptResult(m));
                     }
                 } catch (Throwable t) {
@@ -108,6 +120,113 @@ public final class PowerKeyOverlayHook {
         });
         XposedBridge.log(Constants.TAG + " hooked " + clazz.getSimpleName()
                 + "#" + m.getName() + " " + m);
+    }
+
+    private static void hookPowerKeyEvents(Class<?> pwm) {
+        int hooked = 0;
+        for (java.lang.reflect.Method method : pwm.getDeclaredMethods()) {
+            if (!(method.getName().equals("interceptKeyBeforeQueueing")
+                    || method.getName().equals("interceptKeyBeforeDispatching"))) {
+                continue;
+            }
+            boolean hasKeyEvent = false;
+            for (Class<?> type : method.getParameterTypes()) {
+                if (KeyEvent.class.isAssignableFrom(type)) {
+                    hasKeyEvent = true;
+                    break;
+                }
+            }
+            if (!hasKeyEvent) continue;
+            XposedBridge.hookMethod(method, new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    KeyEvent event = findKeyEvent(param.args);
+                    if (event == null || event.getKeyCode() != KeyEvent.KEYCODE_POWER) return;
+                    if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                        synchronized (SEQUENCE_LOCK) {
+                            sPhoneWindowManager = param.thisObject;
+                            sPowerDownAt = event.getDownTime();
+                        }
+                    } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                        cancelLongPressSequence();
+                    }
+                }
+            });
+            hooked++;
+        }
+        XposedBridge.log(Constants.TAG + " power key event hooks=" + hooked);
+    }
+
+    private static KeyEvent findKeyEvent(Object[] args) {
+        if (args == null) return null;
+        for (Object arg : args) {
+            if (arg instanceof KeyEvent) return (KeyEvent) arg;
+        }
+        return null;
+    }
+
+    private static boolean armLongPressSequence(Object pwm, Context context) {
+        final long now = SystemClock.uptimeMillis();
+        synchronized (SEQUENCE_LOCK) {
+            if (pwm != null) sPhoneWindowManager = pwm;
+            if (sPowerDownAt <= 0L || sPowerDownAt > now) sPowerDownAt = now;
+            cancelCallbacksLocked();
+            final long downAt = sPowerDownAt;
+            long geminiDelay = PowerKeyTimingPolicy.delayUntil(
+                    downAt, now, PowerKeyTimingPolicy.GEMINI_AT_MS);
+            long menuDelay = PowerKeyTimingPolicy.delayUntil(
+                    downAt, now, PowerKeyTimingPolicy.POWER_MENU_AT_MS);
+            sGeminiRunnable = () -> {
+                synchronized (SEQUENCE_LOCK) {
+                    if (sPowerDownAt != downAt) return;
+                }
+                sendAssist(context);
+                XposedBridge.log(Constants.TAG + " Gemini triggered at 3s power hold");
+            };
+            sPowerMenuRunnable = () -> {
+                synchronized (SEQUENCE_LOCK) {
+                    if (sPowerDownAt != downAt) return;
+                }
+                showPowerMenu();
+            };
+            SEQUENCE_HANDLER.postDelayed(sGeminiRunnable, geminiDelay);
+            SEQUENCE_HANDLER.postDelayed(sPowerMenuRunnable, menuDelay);
+            return true;
+        }
+    }
+
+    private static void cancelLongPressSequence() {
+        synchronized (SEQUENCE_LOCK) {
+            cancelCallbacksLocked();
+            sPowerDownAt = -1L;
+            sPhoneWindowManager = null;
+        }
+    }
+
+    private static void cancelCallbacksLocked() {
+        if (sGeminiRunnable != null) SEQUENCE_HANDLER.removeCallbacks(sGeminiRunnable);
+        if (sPowerMenuRunnable != null) SEQUENCE_HANDLER.removeCallbacks(sPowerMenuRunnable);
+        sGeminiRunnable = null;
+        sPowerMenuRunnable = null;
+    }
+
+    private static void showPowerMenu() {
+        Object pwm;
+        synchronized (SEQUENCE_LOCK) {
+            pwm = sPhoneWindowManager;
+        }
+        if (pwm == null) return;
+        for (String method : new String[]{"showGlobalActions", "showGlobalActionsInternal",
+                "showGlobalActionsDialog"}) {
+            try {
+                XposedHelpers.callMethod(pwm, method);
+                XposedBridge.log(Constants.TAG + " power menu triggered at 5s power hold");
+                return;
+            } catch (Throwable ignored) {
+                // HyperOS changes the private method name between releases.
+            }
+        }
+        XposedBridge.log(Constants.TAG + " unable to find global actions method");
     }
 
     private static Object interceptResult(java.lang.reflect.Method m) {
