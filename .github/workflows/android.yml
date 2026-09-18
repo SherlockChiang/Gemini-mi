@@ -14,9 +14,9 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
-          cmdline-tools-version: 11076708
+          cmdline-tools-version: 15859902
       - run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - uses: gradle/actions/wrapper-validation@v4
       - run: chmod +x gradlew
@@ -35,9 +35,9 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
-          cmdline-tools-version: 11076708
+          cmdline-tools-version: 15859902
       - run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - uses: gradle/actions/wrapper-validation@v4
       - run: chmod +x gradlew
