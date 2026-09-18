@@ -29,7 +29,9 @@
 1. 从 [Releases](https://github.com/Xposed-Modules-Repo/com.vince.geminimi/releases/latest)
    下载并安装最新 APK。
 2. 在 LSPosed 中启用 **GeminiMi**。
-3. 作用域只勾选 `android`（系统框架）和 `com.miui.voiceassist`（超级小爱）。
+3. 作用域勾选 `android`（系统框架）、`com.miui.voiceassist`（超级小爱）、
+   `com.google.android.apps.bard`（Gemini）和 `com.google.android.googlequicksearchbox`
+   （Google App）。
 4. 确认 Google App 和 Gemini 已安装，并至少手动启动过一次。
 5. 重启设备。
 6. 解锁后长按电源键测试 Gemini Overlay。
@@ -58,6 +60,7 @@ assistant settings write success=true verified=true
 - `showSessionForActiveService failed`：当前 ROM 的隐藏系统接口签名不同，请在 Issue 中附上完整日志。
 - 弹出 Gemini 普通应用而非 Overlay：确认 Google App 的数字助理已切换为 Gemini，并重启设备。
 - 重启后仍是小爱：确认 LSPosed 作用域包含 `android` 和 `com.miui.voiceassist`。
+- Gemini 仍提示地区不可用：确认 Gemini 与 Google App 都在作用域中，并强制停止后重试。
 
 反馈问题时请提供设备型号、HyperOS/Android 版本、Google App/Gemini 版本和上述日志。
 
@@ -69,6 +72,9 @@ assistant settings write success=true verified=true
   无法工作。
 - 模块会在用户解锁时重新写入 Google 助手设置。系统完成启动后，仍允许用户手动切换
   其他数字助理。
+- 模块只在 Gemini 与 Google App 进程内将 SIM/网络国家伪装为美国（`us` / `310030`），
+  同时覆盖 `SubscriptionInfo` 与对应的 `gsm.*operator.*` 系统属性读取；不会修改真实
+  SIM，也不会影响其他应用。
 - 模块运行在系统框架中。启用前请确保设备具备可用的 LSPosed 救砖/安全模式方案。
 
 ## 工作原理
@@ -77,6 +83,7 @@ assistant settings write success=true verified=true
   Overlay。
 - `AssistantPersistHook` 设置并验证 Google 助手相关的 Secure/Global 设置。
 - `XiaoAiPowerKeyDisableHook` 精确覆盖超级小爱的 `power_wakeup` 偏好。
+- `SimSpoofHook` 只在 Gemini 与 Google App 进程内拦截地区检查所需的 Telephony API。
 
 Hook 失败时会放行原系统逻辑，避免异常继续传播到 `system_server`。
 

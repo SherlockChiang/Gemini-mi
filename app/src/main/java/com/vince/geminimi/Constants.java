@@ -6,6 +6,8 @@ public final class Constants {
     public static final String TAG = "[GeminiMi]";
 
     public static final String XIAOAI_PKG  = "com.miui.voiceassist";
+    public static final String GEMINI_PKG  = "com.google.android.apps.bard";
+    public static final String GOOGLE_APP_PKG = "com.google.android.googlequicksearchbox";
     public static final String SYSTEM      = "android";
 
     public static final String SECURE_ASSISTANT       = "assistant";
