@@ -15,6 +15,8 @@ jobs:
           java-version: '17'
           cache: gradle
       - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
       - run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - uses: gradle/actions/wrapper-validation@v4
       - run: chmod +x gradlew
@@ -34,6 +36,8 @@ jobs:
           java-version: '17'
           cache: gradle
       - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
       - run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - uses: gradle/actions/wrapper-validation@v4
       - run: chmod +x gradlew

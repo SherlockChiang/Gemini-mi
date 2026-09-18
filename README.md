@@ -104,7 +104,7 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 仓库通过 GitHub Actions 自动构建签名版本。LSPosed 官方仓库的 Release tag 使用
-`VersionCode-VersionName` 格式，例如 `2-1.0.1`。
+`VersionCode-VersionName` 格式，例如 `4-1.1`。
 
 签名初始化和维护说明见：
 
