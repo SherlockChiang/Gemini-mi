@@ -26,6 +26,7 @@ public final class SimSpoofHook {
         hookTelephonyManager(lpp.classLoader);
         hookSubscriptionInfo(lpp.classLoader);
         hookSystemProperties(lpp.classLoader);
+        hookGoogleCountryCache(lpp.classLoader);
     }
 
     private static void hookTelephonyManager(ClassLoader cl) {
@@ -121,6 +122,28 @@ public final class SimSpoofHook {
             log("SystemProperties telephony hooks installed");
         } catch (Throwable t) {
             log("SystemProperties hooks failed: " + t);
+        }
+    }
+
+    /** Google App persists the server-detected country as SharedPreferences key "cy".
+     *  That value can override the telephony APIs above, so expose the spoofed country
+     *  when Robin reads the preference without modifying the user's on-disk settings.
+     */
+    private static void hookGoogleCountryCache(ClassLoader cl) {
+        try {
+            Class<?> prefs = XposedHelpers.findClass("android.app.SharedPreferencesImpl", cl);
+            XposedHelpers.findAndHookMethod(prefs, "getString", String.class, String.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            if ("cy".equals(param.args[0])) {
+                                param.setResult("US");
+                            }
+                        }
+                    });
+            log("Google country preference hook installed (cy -> US)");
+        } catch (Throwable t) {
+            log("Google country preference hook failed: " + t);
         }
     }
 
